@@ -1,75 +1,102 @@
 from flask import Flask, render_template, request, jsonify
-import matplotlib
-matplotlib.use("Agg")  # Fix: use non-interactive backend for Flask
 import matplotlib.pyplot as plt
 import io
 import base64
 from groq import Groq
-import traceback
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# Groq API client
-client = Groq(api_key="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")
+# Initialize Groq API client
+client = Groq(api_key="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")  # 🔒 Replace with your actual API key
 
+# Global conversation history
 conversation_history = [
-    {"role": "system", "content": "You are a friendly AI career mentor who creates creative visual and text roadmaps for users."}
+    {"role": "system", "content": "You are a friendly career guidance assistant. Your goal is to help students explore career paths that fit their interests and skills."}
 ]
 
+
 @app.route("/")
-def home():
+def index():
     return render_template("index.html")
+
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    try:
-        user_message = request.json["message"].lower().strip()
-        conversation_history.append({"role": "user", "content": user_message})
+    global conversation_history
+    user_message = request.json["message"]
+    conversation_history.append({"role": "user", "content": user_message})
 
-        # Determine if image roadmap or text roadmap
-        image_keywords = ["visual", "pictorial", "diagram", "roadmap image", "graph", "chart"]
-        text_keywords = ["text", "write", "only text", "text only"]
+    # 🌟 Ask if user wants pictorial roadmap
+    if "roadmap" in user_message.lower() and "pictorial" not in user_message.lower():
+        bot_reply = "Would you like a pictorial representation of your roadmap? (yes/no)"
+        conversation_history.append({"role": "assistant", "content": bot_reply})
+        return jsonify({"reply": bot_reply})
 
-        # --- Generate Image Roadmap ---
-        if any(keyword in user_message for keyword in image_keywords):
-            stages = ["Learn Python", "Master Statistics", "Explore ML", "Build Projects", "Get Hired"]
+    # 🧭 If user says yes, generate roadmap image
+    if "yes" in user_message.lower() and "pictorial" not in user_message.lower():
+        stages = ["Explore Interests", "Learn Basics", "Build Projects", "Network", "Apply for Roles"]
 
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.plot(range(len(stages)), [1]*len(stages), 'o-', color='#6A0D91', linewidth=3)
-            for i, stage in enumerate(stages):
-                ax.text(i, 1.05, stage, ha='center', fontsize=10, fontweight='bold')
-            ax.set_title("AI Career Roadmap", fontsize=14, color="#6A0D91", fontweight="bold")
-            ax.axis("off")
-
+        try:
+            plt.figure(figsize=(8, 3))
+            plt.plot(stages, range(len(stages)), marker="o", color="#00BFAA")
+            plt.title("Your Career Roadmap", color="white")
+            plt.gca().set_facecolor("#222")
+            plt.xticks(rotation=20, color="white")
+            plt.yticks([], [])
             plt.tight_layout()
+
             buf = io.BytesIO()
-            plt.savefig(buf, format="png", bbox_inches="tight", facecolor="#161A3F")
+            plt.savefig(buf, format="png", bbox_inches="tight", facecolor="#111")
             buf.seek(0)
-            image_base64 = base64.b64encode(buf.read()).decode("utf-8")
+            image_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
             buf.close()
 
-            bot_reply = "Here's your generated AI Career Roadmap image!"
+            bot_reply = "Here's your roadmap in pictorial form!"
             conversation_history.append({"role": "assistant", "content": bot_reply})
+
             return jsonify({"reply": bot_reply, "image": image_base64})
 
-        # --- Generate Text Roadmap ---
-        else:
-            response = client.chat.completions.create(
-                model="llama3-8b-8192",  # Groq-compatible model
-                messages=conversation_history
-            )
+        except Exception as e:
+            print("Image generation error:", e)
 
-            bot_reply = response.choices[0].message.content
-            conversation_history.append({"role": "assistant", "content": bot_reply})
+            # Fallback to text roadmap if image fails
+            try:
+                fallback_prompt = (
+                    "Please outline a text-based career roadmap instead of an image. "
+                    "Keep it simple, step-by-step, and motivational."
+                )
+                conversation_history.append({"role": "user", "content": fallback_prompt})
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=conversation_history
+                )
+                bot_reply = response.choices[0].message.content
+                friendly_message = f"Here's your text-based roadmap instead:\n\n{bot_reply}"
 
-            return jsonify({"reply": bot_reply})
+            except Exception as inner_e:
+                print("Fallback Error:", inner_e)
+                friendly_message = (
+                    "I'm having trouble generating the roadmap right now, "
+                    "but you can tell me more about your goals and I'll try again!"
+                )
+
+            return jsonify({"reply": friendly_message})
+
+    # 💬 Otherwise, use Groq model to respond normally
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=conversation_history
+        )
+        bot_reply = response.choices[0].message.content
+        conversation_history.append({"role": "assistant", "content": bot_reply})
+        return jsonify({"reply": bot_reply})
 
     except Exception as e:
-        print("🔥 ERROR:", e)
-        print(traceback.format_exc())
-        return jsonify({
-            "reply": "⚠️ Something went wrong while generating your roadmap. Check console logs for details."
-        })
+        print("Error:", e)
+        friendly_message = "Hmm, something went wrong. Let's try that again!"
+        return jsonify({"reply": friendly_message})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

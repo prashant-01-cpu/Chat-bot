@@ -58,6 +58,41 @@ if (data.image) {
   img.src = "data:image/png;base64," + data.image;
   img.classList.add("roadmap-image");
   appendMessage("bot", img);
+  if (data.image) {
+  const img = document.getElementById("roadmap-img");
+  img.src = `data:image/png;base64,${data.image}`;
+  img.style.display = "block";
+}
+fetch("/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ message: userMessage })
+})
+.then(response => response.json())
+.then(data => {
+  const chatBox = document.getElementById("chat-box");
+
+  // Add the text response
+  const botMsg = document.createElement("div");
+  botMsg.classList.add("bot-message");
+  botMsg.innerHTML = `<p>${data.reply}</p>`;
+  chatBox.appendChild(botMsg);
+
+  // If image exists, show it
+  if (data.image) {
+    const img = document.createElement("img");
+    img.src = "data:image/png;base64," + data.image;
+    img.classList.add("roadmap-image");
+    img.style.maxWidth = "100%";
+    img.style.borderRadius = "12px";
+    img.style.marginTop = "8px";
+    chatBox.appendChild(img);
+  }
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+});
+
+
 } else {
   appendMessage("bot", data.reply);
 }

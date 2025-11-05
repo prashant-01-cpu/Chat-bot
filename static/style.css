@@ -139,6 +139,11 @@ body {
     background: rgba(0, 255, 255, 0.3);
     border-radius: 8px;
 }
+.chat-box {
+    /* existing styles */
+    scroll-behavior: smooth;
+}
+
 .roadmap-image {
   max-width: 80%;
   border-radius: 12px;
@@ -146,3 +151,84 @@ body {
   box-shadow: 0 0 20px rgba(0,255,255,0.3);
 }
 
+/* Animated fade-in for messages */
+.fade-in {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Typing dots animation */
+.typing-dot {
+  display: inline-block;
+  animation: blink 1.4s infinite both;
+  color: #00ffff;
+  font-weight: bold;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
+}
+
+/* Input focus glow */
+.input-area input:focus {
+  box-shadow: 0 0 14px #00ffffcc;
+  background: rgba(255, 255, 255, 0.18);
+  transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+
+/* Send button pulse on click */
+.input-area button:active {
+  transform: scale(0.9);
+  transition: transform 0.1s ease;
+}
+
+/* User message hover effect */
+.message.user .bubble:hover {
+  box-shadow: 0 0 12px #007affcc;
+  transform: scale(1.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.typing-dot {
+  display: inline-block;
+  animation: blink 1.4s infinite both;
+  color: #00ffff;
+  font-weight: bold;
+  font-size: 1.2em;
+  margin: 0 2px;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%, 80%, 100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}

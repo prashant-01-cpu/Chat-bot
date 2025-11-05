@@ -7,30 +7,52 @@ userInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendMessage();
 });
 
-function appendMessage(sender, text) {
+function appendMessage(sender, content) {
     const messageDiv = document.createElement("div");
-    messageDiv.classList.add("message", sender);
+    messageDiv.classList.add("message", sender, "fade-in");  // <-- add fade-in here
 
     const bubble = document.createElement("div");
     bubble.classList.add("bubble");
-    bubble.textContent = text;
+
+    if (typeof content === "string") {
+        bubble.textContent = content;
+    } else {
+        bubble.appendChild(content);
+    }
 
     messageDiv.appendChild(bubble);
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
+
 function showTyping() {
     const bubble = document.createElement("div");
     bubble.classList.add("bubble");
-    bubble.innerHTML = "● ● ●";
-    bubble.style.opacity = 0.5;
+    
+    // Create typing dots container
+    const typingIndicator = document.createElement("div");
+    typingIndicator.classList.add("typing-indicator");
+    
+    // Add 3 animated dots
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("span");
+        dot.classList.add("typing-dot");
+        dot.textContent = "●";
+        typingIndicator.appendChild(dot);
+    }
+
+    bubble.appendChild(typingIndicator);
+
     const botMsg = document.createElement("div");
-    botMsg.classList.add("message", "bot");
+    botMsg.classList.add("message", "bot", "typing");
     botMsg.appendChild(bubble);
+
     chatBox.appendChild(botMsg);
     chatBox.scrollTop = chatBox.scrollHeight;
+
     return botMsg;
 }
+
 
 async function sendMessage() {
     const message = userInput.value.trim();

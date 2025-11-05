@@ -7,7 +7,7 @@ from groq import Groq
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Initialize Groq API client
-client = Groq(api_key="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")  # 🔒 Replace with your actual API key
+client = Groq(api_key="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")  # 🔒 Replace with your actual API key
 
 # Global conversation history
 conversation_history = [

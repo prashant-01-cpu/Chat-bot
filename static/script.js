@@ -52,6 +52,31 @@ function showTyping() {
 
     return botMsg;
 }
+function showTyping() {
+    const bubble = document.createElement("div");
+    bubble.classList.add("bubble");
+
+    // Create the typing dots
+    const typingIndicator = document.createElement("div");
+    typingIndicator.classList.add("typing-indicator");
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("span");
+        dot.classList.add("typing-dot");
+        dot.textContent = "●";
+        typingIndicator.appendChild(dot);
+    }
+
+    bubble.appendChild(typingIndicator);
+
+    const botMsg = document.createElement("div");
+    botMsg.classList.add("message", "bot", "typing");
+    botMsg.appendChild(bubble);
+    chatBox.appendChild(botMsg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    return botMsg; // Reference to remove later
+}
+
 
 
 async function sendMessage() {
@@ -118,6 +143,35 @@ fetch("/chat", {
 } else {
   appendMessage("bot", data.reply);
 }
+
+
+particlesJS('particles-js', {
+  particles: {
+    number: { value: 80, density: { enable: true, value_area: 800 } },
+    color: { value: '#5bc0de' }, /* cyan/light blue */
+    shape: { type: 'circle' },
+    opacity: { value: 0.6, random: true },
+    size: { value: 2, random: true },
+    move: {
+      enable: true,
+      speed: 1.5,
+      direction: 'none',
+      random: true,
+      straight: false,
+      out_mode: 'out',
+      bounce: false
+    }
+  },
+  interactivity: {
+    detect_on: 'canvas',
+    events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' } },
+    modes: {
+      grab: { distance: 140, line_linked: { opacity: 0.5 } },
+      push: { particles_nb: 4 }
+    }
+  },
+  retina_detect: true
+});
 
 
 

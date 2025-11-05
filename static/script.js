@@ -6,24 +6,34 @@ sendBtn.addEventListener("click", sendMessage);
 userInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendMessage();
 });
+function formatBotReply(text) {
+  // Replace * or - at the start of line, only if followed by a space (to skip bold/stars)
+  return text.replace(/^\s*([*-])\s+/gm, '➤ ');
+}
 
 function appendMessage(sender, content) {
-    const messageDiv = document.createElement("div");
-    messageDiv.classList.add("message", sender, "fade-in");  // <-- add fade-in here
+  const messageDiv = document.createElement("div");
+  messageDiv.classList.add("message", sender, "fade-in");
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble");
 
-    const bubble = document.createElement("div");
-    bubble.classList.add("bubble");
+  // For bot, format pointer bullets if displaying as HTML
+  if (sender === "bot") {
+    bubble.innerHTML = formatBotReply(content);
+  } else {
+    bubble.textContent = content;
+  }
 
-    if (typeof content === "string") {
-        bubble.textContent = content;
-    } else {
-        bubble.appendChild(content);
-    }
+  messageDiv.appendChild(bubble);
+  chatBox.appendChild(messageDiv);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 
     messageDiv.appendChild(bubble);
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
-}
+
 
 function showTyping() {
     const bubble = document.createElement("div");
@@ -96,6 +106,7 @@ async function sendMessage() {
         });
         const data = await response.json();
         typing.querySelector(".bubble").textContent = data.reply;
+        appendMessage("bot", data.reply);
     } catch {
         typing.querySelector(".bubble").textContent = "⚠️ Something went wrong!";
     }

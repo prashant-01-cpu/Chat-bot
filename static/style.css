@@ -261,7 +261,7 @@ font-size: 2em;
 }
 
 .shooting-stars {
-  position: absolute;
+  position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
   z-index: 0; /* behind chat */
@@ -303,3 +303,10 @@ font-size: 2em;
     transform: translateY(240px) translateX(480px) scaleX(1.1) rotate(-25deg);
   }
 }
+.chat-image {
+  max-width: 80%;
+  margin: 12px 0;
+  border-radius: 10px;
+  box-shadow: 0 0 16px #00ffff40;
+}
+

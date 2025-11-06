@@ -2,22 +2,28 @@ const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 
+// Prevent double triggers
 sendBtn.addEventListener("click", sendMessage);
 userInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") sendMessage();
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
 });
+
+// 🪄 Format bot reply (replace * or - with ➤)
 function formatBotReply(text) {
-  // Replace * or - at the start of line, only if followed by a space (to skip bold/stars)
-  return text.replace(/^\s*([*-])\s+/gm, '➤ ');
+  return text.replace(/^\s*([*-])\s+/gm, "➤ ");
 }
 
+// 💬 Append message to chat
 function appendMessage(sender, content) {
   const messageDiv = document.createElement("div");
   messageDiv.classList.add("message", sender, "fade-in");
+
   const bubble = document.createElement("div");
   bubble.classList.add("bubble");
 
-  // For bot, format pointer bullets if displaying as HTML
   if (sender === "bot") {
     bubble.innerHTML = formatBotReply(content);
   } else {
@@ -29,161 +35,82 @@ function appendMessage(sender, content) {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-
-    messageDiv.appendChild(bubble);
-    chatBox.appendChild(messageDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-
+// ✨ Show typing animation
 function showTyping() {
-    const bubble = document.createElement("div");
-    bubble.classList.add("bubble");
-    
-    // Create typing dots container
-    const typingIndicator = document.createElement("div");
-    typingIndicator.classList.add("typing-indicator");
-    
-    // Add 3 animated dots
-    for (let i = 0; i < 3; i++) {
-        const dot = document.createElement("span");
-        dot.classList.add("typing-dot");
-        dot.textContent = "●";
-        typingIndicator.appendChild(dot);
-    }
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble");
 
-    bubble.appendChild(typingIndicator);
+  const typingIndicator = document.createElement("div");
+  typingIndicator.classList.add("typing-indicator");
 
-    const botMsg = document.createElement("div");
-    botMsg.classList.add("message", "bot", "typing");
-    botMsg.appendChild(bubble);
-
-    chatBox.appendChild(botMsg);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    return botMsg;
-}
-function showTyping() {
-    const bubble = document.createElement("div");
-    bubble.classList.add("bubble");
-
-    // Create the typing dots
-    const typingIndicator = document.createElement("div");
-    typingIndicator.classList.add("typing-indicator");
-    for (let i = 0; i < 3; i++) {
-        const dot = document.createElement("span");
-        dot.classList.add("typing-dot");
-        dot.textContent = "●";
-        typingIndicator.appendChild(dot);
-    }
-
-    bubble.appendChild(typingIndicator);
-
-    const botMsg = document.createElement("div");
-    botMsg.classList.add("message", "bot", "typing");
-    botMsg.appendChild(bubble);
-    chatBox.appendChild(botMsg);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    return botMsg; // Reference to remove later
-}
-
-
-
-async function sendMessage() {
-    const message = userInput.value.trim();
-    if (!message) return;
-
-    appendMessage("user", message);
-    userInput.value = "";
-
-    const typing = showTyping();
-
-    try {
-        const response = await fetch("/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message }),
-        });
-        const data = await response.json();
-        typing.querySelector(".bubble").textContent = data.reply;
-        appendMessage("bot", data.reply);
-    } catch {
-        typing.querySelector(".bubble").textContent = "⚠️ Something went wrong!";
-    }
-}
-if (data.image) {
-  const img = document.createElement("img");
-  img.src = "data:image/png;base64," + data.image;
-  img.classList.add("roadmap-image");
-  appendMessage("bot", img);
-  if (data.image) {
-  const img = document.getElementById("roadmap-img");
-  img.src = `data:image/png;base64,${data.image}`;
-  img.style.display = "block";
-}
-fetch("/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ message: userMessage })
-})
-.then(response => response.json())
-.then(data => {
-  const chatBox = document.getElementById("chat-box");
-
-  // Add the text response
-  const botMsg = document.createElement("div");
-  botMsg.classList.add("bot-message");
-  botMsg.innerHTML = `<p>${data.reply}</p>`;
-  chatBox.appendChild(botMsg);
-
-  // If image exists, show it
-  if (data.image) {
-    const img = document.createElement("img");
-    img.src = "data:image/png;base64," + data.image;
-    img.classList.add("roadmap-image");
-    img.style.maxWidth = "100%";
-    img.style.borderRadius = "12px";
-    img.style.marginTop = "8px";
-    chatBox.appendChild(img);
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement("span");
+    dot.classList.add("typing-dot");
+    dot.textContent = "●";
+    typingIndicator.appendChild(dot);
   }
 
+  bubble.appendChild(typingIndicator);
+
+  const botMsg = document.createElement("div");
+  botMsg.classList.add("message", "bot", "typing");
+  botMsg.appendChild(bubble);
+  chatBox.appendChild(botMsg);
   chatBox.scrollTop = chatBox.scrollHeight;
-});
 
-
-} else {
-  appendMessage("bot", data.reply);
+  return botMsg;
 }
 
+// 🚀 Send message to backend
+async function sendMessage() {
+  const message = userInput.value.trim();
+  if (!message) return;
 
-particlesJS('particles-js', {
+  appendMessage("user", message);
+  userInput.value = "";
+
+  const typing = showTyping();
+
+  try {
+    const response = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json();
+
+    chatBox.removeChild(typing); // Remove typing dots
+
+    if (data.reply) appendMessage("bot", data.reply);
+
+    if (data.image_url) {
+      const img = document.createElement("img");
+      img.src = data.image_url;
+      img.classList.add("roadmap-image");
+      chatBox.appendChild(img);
+    }
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+  } catch (err) {
+    chatBox.removeChild(typing);
+    appendMessage("bot", "⚠️ Something went wrong!");
+  }
+}
+
+// 🌌 Animated background
+particlesJS("particles-js", {
   particles: {
     number: { value: 80, density: { enable: true, value_area: 800 } },
-    color: { value: '#5bc0de' }, /* cyan/light blue */
-    shape: { type: 'circle' },
+    color: { value: "#5bc0de" },
+    shape: { type: "circle" },
     opacity: { value: 0.6, random: true },
     size: { value: 2, random: true },
-    move: {
-      enable: true,
-      speed: 1.5,
-      direction: 'none',
-      random: true,
-      straight: false,
-      out_mode: 'out',
-      bounce: false
-    }
+    move: { enable: true, speed: 1.5, random: true, out_mode: "out" },
   },
   interactivity: {
-    detect_on: 'canvas',
-    events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' } },
-    modes: {
-      grab: { distance: 140, line_linked: { opacity: 0.5 } },
-      push: { particles_nb: 4 }
-    }
+    detect_on: "canvas",
+    events: { onhover: { enable: true, mode: "grab" }, onclick: { enable: true, mode: "push" } },
+    modes: { grab: { distance: 140, line_linked: { opacity: 0.5 } }, push: { particles_nb: 4 } },
   },
-  retina_detect: true
+  retina_detect: true,
 });
-
-
-
-

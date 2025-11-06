@@ -123,9 +123,11 @@ font-size: 2em;
   border-radius: 12px 12px 12px 0;
   text-align: left;
   box-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
+  line-height: 1.6em;
+  color: #00ffff;
 }
 
-/* General bubble style */
+/* General bubble style */  
 .bubble {
   max-width: 70%;
   padding: 12px 16px;

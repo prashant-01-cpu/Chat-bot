@@ -13,8 +13,23 @@ userInput.addEventListener("keypress", (e) => {
 
 // 🪄 Format bot reply (replace * or - with ➤)
 function formatBotReply(text) {
-  return text.replace(/^\s*([*-])\s+/gm, "➤ ");
+  let formatted = text;
+
+  // Convert markdown bold (**text**) to HTML <strong>
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+  // Convert markdown italic (*text*) to <em>
+  formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // Replace bullet markers (* or -) at the start of lines with •
+  formatted = formatted.replace(/^\s*([*-])\s+/gm, '• ');
+
+  // Replace numbered list (1. 2. etc.) with clean list styling
+  formatted = formatted.replace(/^(\d+)\.\s+/gm, '$1. ');
+
+  return formatted;
 }
+
 
 // 💬 Append message to chat
 function appendMessage(sender, content) {

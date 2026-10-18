@@ -1,87 +1,160 @@
-from flask import Flask, render_template, request, jsonify
-import matplotlib.pyplot as plt
-import io
-import base64
+"""Flask backend for the AI Career Guidance Chatbot."""
+
+import os
+import secrets
+from threading import Lock
+
+from cachetools import TTLCache
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request, session
 from groq import Groq
 
-app = Flask(__name__, template_folder='templates', static_folder='static')
+load_dotenv()
 
-# Initialize Groq API client
-client = Groq(api_key="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")  # 🔒 Replace with your actual API key
+api_key = os.getenv("GROQ_API_KEY")
+secret_key = os.getenv("FLASK_SECRET_KEY")
+if not api_key or api_key.startswith("replace_with_"):
+    raise RuntimeError("GROQ_API_KEY is missing. Add your new key to the .env file.")
+if not secret_key or secret_key.startswith("replace_with_"):
+    raise RuntimeError("FLASK_SECRET_KEY is missing. Set it in your .env file.")
 
-# Global conversation history
-conversation_history = [
-    {"role": "system", "content": "You are a friendly career guidance assistant. Your goal is to help students explore career paths that fit their interests and skills."}
+app = Flask(__name__, template_folder="templates", static_folder="static")
+app.config.update(
+    SECRET_KEY=secret_key,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    # Set SESSION_COOKIE_SECURE=True when serving over HTTPS in production.
+)
+
+client = Groq(api_key=api_key)
+model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
+SYSTEM_MESSAGE = {
+    "role": "system",
+    "content": (
+        "You are a friendly career guidance assistant. Help students explore "
+        "career paths that fit their interests and skills. Provide realistic, "
+        "practical, and clear next steps."
+    ),
+}
+ROADMAP_STAGES = [
+    "Explore your interests and strengths",
+    "Learn the foundational skills",
+    "Build practical projects",
+    "Network with people in your field",
+    "Apply for internships and entry-level roles",
 ]
+MAX_MESSAGE_LENGTH = 4000
+MAX_HISTORY_MESSAGES = 20
+
+# A small, per-browser, in-memory conversation cache for local/demo use.
+# Use a shared store (e.g., Redis) for multiple production workers/instances.
+conversations = TTLCache(maxsize=1000, ttl=3600)
+conversations_lock = Lock()
 
 
-@app.route("/")
+def get_conversation():
+    conversation_id = session.get("conversation_id")
+    if not conversation_id:
+        conversation_id = secrets.token_urlsafe(32)
+        session["conversation_id"] = conversation_id
+
+    with conversations_lock:
+        state = conversations.get(conversation_id)
+        if state is None:
+            state = {"messages": [], "awaiting_roadmap_confirmation": False}
+        # Work on a copy so an API request does not hold the cache lock.
+        state = {
+            "messages": list(state["messages"]),
+            "awaiting_roadmap_confirmation": state["awaiting_roadmap_confirmation"],
+        }
+    return conversation_id, state
+
+
+def save_conversation(conversation_id, state):
+    with conversations_lock:
+        conversations[conversation_id] = state
+
+
+@app.get("/")
 def index():
     return render_template("index.html")
 
 
-@app.route("/chat", methods=["POST"])
+@app.post("/chat")
 def chat():
-    global conversation_history
-    user_message = request.json["message"]
-    conversation_history.append({"role": "user", "content": user_message})
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Send JSON with a 'message' field."}), 400
 
-    # 🌟 Ask if user wants pictorial roadmap
-    if "roadmap" in user_message.lower() and "pictorial" not in user_message.lower():
-        bot_reply = "Would you like a pictorial representation of your roadmap? (yes/no)"
-        conversation_history.append({"role": "assistant", "content": bot_reply})
-        return jsonify({"reply": bot_reply})
+    user_message = payload.get("message")
+    if not isinstance(user_message, str) or not user_message.strip():
+        return jsonify({"error": "Message must be a non-empty string."}), 400
 
-    # 🧭 If user says yes, generate roadmap image
-    if "yes" in user_message.lower() and "pictorial" not in user_message.lower():
-        stages = ["Explore Interests", "Learn Basics", "Build Projects", "Network", "Apply for Roles"]
+    user_message = user_message.strip()
+    if len(user_message) > MAX_MESSAGE_LENGTH:
+        return jsonify({"error": "Message is too long."}), 400
 
-        try:
+    conversation_id, state = get_conversation()
+    lower_message = user_message.lower()
 
-            bot_reply = "Here's your roadmap in pictorial form!"
-            conversation_history.append({"role": "assistant", "content": bot_reply})
+    if state["awaiting_roadmap_confirmation"]:
+        if lower_message in {"yes", "y", "sure", "okay", "ok"}:
+            state["awaiting_roadmap_confirmation"] = False
+            roadmap = "Here's a simple career roadmap:\n" + "\n".join(
+                f"{number}. {stage}"
+                for number, stage in enumerate(ROADMAP_STAGES, start=1)
+            )
+            state["messages"].extend(
+                [
+                    {"role": "user", "content": user_message},
+                    {"role": "assistant", "content": roadmap},
+                ]
+            )
+            state["messages"] = state["messages"][-MAX_HISTORY_MESSAGES:]
+            save_conversation(conversation_id, state)
+            return jsonify({"reply": roadmap})
+        if lower_message in {"no", "n"}:
+            state["awaiting_roadmap_confirmation"] = False
+            reply = "No problem! What career question can I help you with?"
+            save_conversation(conversation_id, state)
+            return jsonify({"reply": reply})
+        state["awaiting_roadmap_confirmation"] = False
 
-        except Exception as e:
-            print("Image generation error:", e)
-
-            # Fallback to text roadmap if image fails
-            try:
-                fallback_prompt = (
-                    "Please outline a text-based career roadmap instead of an image. "
-                    "Keep it simple, step-by-step, and motivational."
-                )
-                conversation_history.append({"role": "user", "content": fallback_prompt})
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=conversation_history
-                )
-                bot_reply = response.choices[0].message.content
-                friendly_message = f"Here's your text-based roadmap instead:\n\n{bot_reply}"
-
-            except Exception as inner_e:
-                print("Fallback Error:", inner_e)
-                friendly_message = (
-                    "I'm having trouble generating the roadmap right now, "
-                    "but you can tell me more about your goals and I'll try again!"
-                )
-
-            return jsonify({"reply": friendly_message})
-
-    # 💬 Otherwise, use Groq model to respond normally
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=conversation_history
+    if "roadmap" in lower_message and "pictorial" not in lower_message:
+        reply = "Would you like a step-by-step career roadmap? (yes/no)"
+        state["awaiting_roadmap_confirmation"] = True
+        state["messages"].extend(
+            [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": reply},
+            ]
         )
-        bot_reply = response.choices[0].message.content
-        conversation_history.append({"role": "assistant", "content": bot_reply})
-        return jsonify({"reply": bot_reply})
+        state["messages"] = state["messages"][-MAX_HISTORY_MESSAGES:]
+        save_conversation(conversation_id, state)
+        return jsonify({"reply": reply})
 
-    except Exception as e:
-        print("Error:", e)
-        friendly_message = "Hmm, something went wrong. Let's try that again!"
-        return jsonify({"reply": friendly_message})
+    messages = [SYSTEM_MESSAGE] + state["messages"][-MAX_HISTORY_MESSAGES:] + [
+        {"role": "user", "content": user_message}
+    ]
+    try:
+        response = client.chat.completions.create(model=model, messages=messages)
+        bot_reply = response.choices[0].message.content or "I couldn't generate a reply."
+    except Exception:
+        app.logger.exception("Groq chat request failed")
+        return jsonify({"reply": "I'm having trouble responding right now. Please try again."}), 502
+
+    state["messages"] = (
+        state["messages"]
+        + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": bot_reply},
+        ]
+    )[-MAX_HISTORY_MESSAGES:]
+    save_conversation(conversation_id, state)
+    return jsonify({"reply": bot_reply})
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Local development only. Use a production WSGI server for hosting.
+    app.run(debug=False)

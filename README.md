@@ -71,6 +71,7 @@ Visit http://127.0.0.1:5000/ in your browser. Press Ctrl+C to stop the server.
 🔌 API endpoint
 POST /chat accepts JSON:
 { "message": "What does a data analyst do?" }
+
 Success response:
 { "reply": "A data analyst works with data to find useful patterns and insights..." }
 nvalid input returns HTTP 400 with an error field; upstream AI service failures return HTTP 502 with a user-friendly reply field. The frontend should send requests from the same browser session to maintain temporary chat history.
